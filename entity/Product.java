@@ -38,12 +38,12 @@ public class Product extends Entity {
 	public void setProductId(long product_id) {   
 		this.productId = product_id;
 	}
-
-	public String getProductName() {
+	@Override
+	public String getName() {
 		return productName;
 	}
-
-	public void setProductName(String product_name) {
+	@Override
+	public void setName(String product_name) {
 		this.productName = product_name;
 	}
 

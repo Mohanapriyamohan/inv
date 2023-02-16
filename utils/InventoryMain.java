@@ -5,8 +5,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.*;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
+
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -41,7 +44,6 @@ class InventoryMain {
 			String entityPath = entityMapperObj.getEntityPath();
 			JSONArray entityColumns = Util.getEntityColumnObject(entityPath);
 
-			// System.out.println(entityColumns);
 
 			JSONObject inputJson = new JSONObject();
 			String tempVal = null;
@@ -70,7 +72,6 @@ class InventoryMain {
 			}
 			}
 
-			//System.out.println("Input JSON :: " + inputJson.toString());
 
 			Class<?> c = Class.forName(entityMapperObj.getClassPath());
 			Method method = null;
@@ -78,16 +79,19 @@ class InventoryMain {
 			if (requestTypeObj == RequestType.GET) {
 				method = c.getDeclaredMethod(requestTypeObj.getMethod().toLowerCase(), String.class);
 				obj = method.invoke(c.newInstance(), tempVal);
+				view(obj);
 			} else if(requestTypeObj == RequestType.GETALL) {
-				System.out.println("hhhh");
 				method = c.getDeclaredMethod(requestTypeObj.getMethod().toLowerCase());
 				obj = method.invoke(c.newInstance());
+				view(obj);
+				
 			} else {
 				method = c.getDeclaredMethod(requestTypeObj.getMethod().toLowerCase(), JSONObject.class);
 				obj = method.invoke(c.newInstance(), inputJson);
+				System.out.println(obj);
 			}
 
-			System.out.println("FINAL OUTPUT :: " + obj.toString());
+			//System.out.println("FINAL OUTPUT :: " + obj.toString());
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -96,5 +100,33 @@ class InventoryMain {
 	public String getName() {
 		return null;
 	}
+	
+	public static void view(Object obj) {
 
-}
+		JSONArray data = (JSONArray) obj;
+		if (data != null) {
+			Iterator<Object> iterator = data.iterator();
+			int i =0;
+	
+		while (iterator.hasNext()) {
+			JSONObject Value = (JSONObject) iterator.next();
+			Set<String> keyValue = Value.keySet();
+			if(i == 0) {
+			for (String key : keyValue) {
+				System.out.print(key + "\t\t\t\t\t");
+			}
+			System.out.println();
+			i++;
+			}
+			for (String key : keyValue) {
+				System.out.print(Value.get(key) + "\t\t\t\t\t");
+			}
+			System.out.println();
+		}
+		}
+		// Iterating JSON array
+	}
+	
+	
+
+} //class ends here 

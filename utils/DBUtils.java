@@ -29,18 +29,21 @@ public class DBUtils {
 			case "GET":
 			case "GETALL":
 				query.append("select * from ").append(entity.getClass().getSimpleName().toLowerCase());
-				/*
-				 * if( entity.getId() != -1) { // select * query query.append(" where = ?"); }
-				 */
-				setRange(entity,query).toString();
-				break;
+				  if( entity.getName() != null) { // select * query
+					  query.append(" where "+ getColumnNameString(entity, false, true) + " like  ? ");
+					  } else {
+						  setRange(entity,query).toString(); 
+					  }
+				break;  
 			case "UPDATE": 
 				query.append("update ").append(entity.getClass().getSimpleName().toLowerCase()).append(" set");
-				query.append("(").append(getPlaceHoderString(entity.getColumns(),entity.getColumns().length)).append(")");
+				query.append("(").append(getPlaceHoderString(entity.getColumns(),entity.getColumns().length-1)).append(")");
+				query.append(" where "+ getColumnNameString(entity, false, true) + " =  ? ");
 				break;
 			case "CREATE":
-				query.append("insert into ").append(entity.getClass().getSimpleName().toLowerCase()).append("(").append(getColumnNameString(entity, false)).append(")").append(" values");
+				query.append("insert into ").append(entity.getClass().getSimpleName().toLowerCase()).append("(").append(getColumnNameString(entity, false, false)).append(")").append(" values");
 				query.append("(").append(getPlaceHoderString(entity.getColumns().length-1)).append(")");
+				
 				break;
 			case "DELETE":
 				break;
@@ -49,20 +52,22 @@ public class DBUtils {
 		return query.toString();
 	}
 	
-	public static <T extends Entity> String getResult(T entity, RequestType type) throws SecurityException, ClassNotFoundException {
+	public static <T extends Entity> String getResult(T entity, RequestType type)
+			throws SecurityException, ClassNotFoundException {
 		String query = getQuery(entity, type);
 		System.out.println(query);
 		HashMap rs = getResult(query, getEntityValues(entity, type));
 		String result = null;
-		if(Long.valueOf(rs.get("primary_id").toString()) != -1) {
-			result = entity.getClass().getSimpleName()+" added sucessfully";
-		}else if(rs.get("result_set") != null) {
-			result = " data will be shown";
+		if (Long.valueOf(rs.get("primary_id").toString()) != -1) {
+			result = entity.getClass().getSimpleName() + " added sucessfully";
+		} else if (rs.get("result_set") != null) {
+			result =  (String) rs.get("result_set");
 		}
-		return result;
+      		return result;
+
 	}
 	
-	public static String getPlaceHoderString(int len) {
+	public static String getPlaceHoderString(int len) { 
 		StringBuffer buf = new StringBuffer();
 		for(int i=0;i<len;i++) {
 			buf.append("?");
@@ -73,22 +78,23 @@ public class DBUtils {
 		return buf.toString();
 	}
 	
-	public static <T extends Entity> String getColumnNameString(T entity, boolean needPri) throws SecurityException, ClassNotFoundException {
+	public static <T extends Entity> String getColumnNameString(T entity, boolean isPrimary, boolean isSearch) throws SecurityException, ClassNotFoundException {
 		StringBuffer buf = new StringBuffer();
 		JSONArray entityColumns = Util.getEntityColumnObject(entity.getClass().getName());
 		int len = entityColumns.length();
 		for(int i = 0; i < len ;i++) {
 			JSONObject jsonObj = (JSONObject) entityColumns.getJSONObject(i);
-			if(jsonObj.getBoolean("is_primary") && needPri) {
-				buf.append(jsonObj.optString("name")).append(",");;
-			}else if(!jsonObj.getBoolean("is_primary")) {
-				buf.append(jsonObj.optString("name")).append(",");;
+			if (jsonObj.getBoolean("is_search") && isSearch) {
+				buf.append(jsonObj.optString("name")).append(",");
+			} else if(jsonObj.getBoolean("is_primary") && isPrimary) {
+				buf.append(jsonObj.optString("name")).append(",");
+			} else if(!jsonObj.getBoolean("is_primary") && !isSearch) {
+				buf.append(jsonObj.optString("name")).append(",");
 			}
-			
 		}
 		String result = buf.toString();
 		return result.substring(0,result.length()-1);
-	}
+	     }
 	
 	public static String getPlaceHoderString(Field[] columns, int len) {
 		StringBuffer buf = new StringBuffer();
@@ -111,39 +117,24 @@ public class DBUtils {
 	}
 	
 	public static HashMap getResult(String query, Object... args) {
-		System.out.println("oooo");
 		Connection con = null;
 		try{  
 			Class.forName("com.mysql.jdbc.Driver");  
 			con=DriverManager.getConnection("jdbc:mysql://localhost:3306/inventory?autoReconnect=true&useSSL=false","root","Root@123");  
-			
 			PreparedStatement stmt = (PreparedStatement) con.prepareStatement(query, Statement.RETURN_GENERATED_KEYS); 
 			if (args != null) {
 				mapParams(stmt, args);
 			}
-			System.out.println("==========="+stmt);
+			System.out.println(stmt);
 			ResultSet rs = null;
 			ResultSet rsNew = null;
 			int status = -1;
+			String result = null;
 			Long primaryId = -1L; 
 			if(query.contains("select")) {
-				System.out.println("enter select"); 
 				rs=stmt.executeQuery();
-				
-//				java.sql.ResultSetMetaData rsmd = rs.getMetaData();
-//				
-//				   System.out.println(rsmd);   
-//				   int columnsNumber = rsmd.getColumnCount();
-//				   while (rs.next()) {
-//				       for (int i = 1; i <= columnsNumber; i++) {
-//				           if (i > 1) System.out.print(",  ");
-//				           String columnValue = rs.getString(i);
-//				           System.out.print(columnValue);
-//				       }
-//				       System.out.println("");
-//				   }
-				
-			}else {
+				result = convertJsonObj(rs).toString();
+			}else {  
 				status = stmt.executeUpdate();
 				if(query.contains("insert")) {
 					rsNew = stmt.executeQuery("select last_insert_id();");
@@ -154,7 +145,7 @@ public class DBUtils {
 			}
 			//System.out.println("==========="+rs.toString());
 			HashMap map = new HashMap();
-			map.put("result_set",rs);
+			map.put("result_set",result);
 			map.put("primary_id",primaryId);
 			return map;  
 		}catch(Exception e){ 
@@ -197,7 +188,7 @@ public class DBUtils {
 		JSONObject json = entity.getValueJson();
 		if(type == RequestType.GET) {
 			arr = new Object[1];
-			arr[0] = entity.getId();
+			arr[0] = entity.getName();
 		}else if(type == RequestType.CREATE || type == RequestType.UPDATE) {
 			JSONArray jsonArr = Util.getEntityColumns(entity.getClass());
 			int len = jsonArr.length();
@@ -225,7 +216,65 @@ public class DBUtils {
 	}
 		return arr;
 	}	
+
+
+
+public static String convertString(ResultSet rs) {
+
+    StringBuffer buf = new StringBuffer();
+    buf.append("[");
+    try {
+        ResultSetMetaData metaData = (ResultSetMetaData) rs.getMetaData();
+        int nColumns = metaData.getColumnCount();
+        while (rs.next()) {
+        for (int i = 1; i <= nColumns; ++i) {
+            buf.append(metaData.getColumnName(i));
+            buf.append(" = ");
+            buf.append(rs.getString(i));
+            if (i < nColumns)
+                buf.append(" , ");
+        }
+        }
+    } catch (SQLException e) {
+        buf.append(e.getMessage());
+        e.printStackTrace();
+    }
+    buf.append("]");
+
+    return buf.toString();
 }
+
+
+public static JSONArray convertJsonObj(ResultSet rs) {
+	JSONArray json = new JSONArray();
+	ResultSetMetaData rsmd;
+	try {
+		rsmd = (ResultSetMetaData) rs.getMetaData();
+	
+	while(rs.next()) {
+	  int numColumns = rsmd.getColumnCount();
+	  JSONObject obj = new JSONObject();
+	  for (int i=1; i<=numColumns; i++) {
+	    String column_name = rsmd.getColumnName(i);
+	    obj.put(column_name, rs.getObject(column_name));
+	  }
+	  json.put(obj);
+	}
+
+} catch (SQLException e) {
+	// TODO Auto-generated catch block
+	e.printStackTrace();
+}
+	return json;
+}
+
+
+} // class end here
+
+
+
+
+
 
 
 

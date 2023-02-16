@@ -39,6 +39,10 @@ public abstract class Entity {
 	
 	public abstract void setId(long id);
 	
+	public abstract String getName();
+	
+	public abstract void setName(String name);
+	
 	public boolean isExist() {
 		return this.isExist;
 	}
@@ -63,4 +67,6 @@ public abstract class Entity {
 	         }
 	    }
 	}
+
+	
 }

@@ -2,6 +2,7 @@ package inv.operation;
 
 import java.util.List;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -12,18 +13,19 @@ import inv.utils.DBUtils;
 public class ProductOps implements Operations {
 
 	@Override
-	public JSONObject get(String id) throws Exception {
+	public JSONArray get(String Name) throws Exception {
 		
 		// TODO Auto-generated method stub
 		Product product = new Product();
+		product.setName(Name);
 		try {
-			return new JSONObject(DBUtils.getResult(product, RequestType.GET));
+			return new JSONArray(DBUtils.getResult(product, RequestType.GET));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return null;
-	}
+	}      
 
 	@Override
 	public List<JSONObject> get(String[] ids) throws Exception {
@@ -31,10 +33,11 @@ public class ProductOps implements Operations {
 		return null;
 	}
 	
-	public JSONObject get() throws Exception{
+	@Override
+	public JSONArray get() throws Exception{
 		try {
 			Product product = new Product();
-			return new JSONObject(DBUtils.getResult(product, RequestType.GETALL));
+			return new JSONArray(DBUtils.getResult(product, RequestType.GETALL));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -55,6 +58,10 @@ public class ProductOps implements Operations {
 	@Override
 	public JSONObject update(JSONObject json) throws Exception {
 		// TODO Auto-generated method stub
+		System.out.println("inside update");
+		Product product = new Product();
+		product.setValues(json);
+		String result = DBUtils.getResult(product, RequestType.UPDATE);
 		return null;
 	}
 
